@@ -1,0 +1,27 @@
+\section{Backend Design and Integration Boundary}
+\begin{figure*}[!t]
+\centering\includegraphics[width=\textwidth]{v2-cache-architecture.pdf}
+\caption{Revised backend. A model proposal prepares text; later observed transcript support helps decide commitment. The semantic pilot replays synthetic ASR updates with measured generation demands. Connecting arbitrary generated text to the formal WebXR renderer and measuring physical presentation remain separate integration tasks.}
+\label{fig:cache-system}
+\end{figure*}
+\subsection{Preparing a candidate is separate from displaying it}
+The revised backend treats proposal generation as preparation. The model receives the current transcript prefix without the ASR-final flag and proposes an exact 1--4 word source span, a style label, and an ordinal salience value. The salience value is a model-produced category, not a calibrated probability. Empty output remains permitted for ordinary speech. Shared validation checks JSON shape, source support, short length, and the frozen eligibility rules for every policy.
+
+The online cache receives only observed ASR updates, completed proposals, and monotonic time. Its interface exposes \texttt{on\_asr}, \texttt{on\_proposal}, and \texttt{tick}; evaluation targets are not arguments. A supported proposal remains cached while further model calls are paused. Subsequent ASR evidence can therefore confirm an already prepared phrase without requiring the language model to propose it again.
+
+The frozen revised configuration requires salience 2 and at least six heard words for all methods. The selected generator is Qwen3-4B snapshot \texttt{1cfa9a72}, in non-thinking BF16 mode~\cite{qwen4}. Cache commitment requires two supporting ASR updates and a 300 ms hold, with a 2,000 ms candidate lifetime, at most two commits, and a 750 ms presentation cooldown. Inference uses a 1,500 ms release-age budget and a 500 ms estimate calibrated during development. These are engineering parameters rather than validated perceptual thresholds.
+
+Commitment checks continuous support across a fixed number of ASR updates and a minimum hold after proposal completion. A revision removing the phrase cancels the cached candidate. A time-to-live from the phrase's first continuous source support prevents indefinite retention of an old proposal. A configured commit bound and presentation interval limit visible changes. These mechanisms do not guarantee that a repeatedly supported phrase is the best comedic emphasis; that question is measured separately.
+
+Generation uses a nonpreemptive worker. A latest-only pending slot can replace obsolete waiting input, while running work remains charged even if unused. Public release-age budgets control inference admission and stale completion rejection. Candidate holding can also suppress unnecessary requests while confirmation is pending. The scheduler does not read an individual future request's measured duration to decide whether to start it.
+
+\subsection{Baselines and method isolation}
+Sentence-final generation, fixed-interval streaming, and the revised cache policy consume the same frozen model responses and measured service demands. All share the same source and eligibility checks. Fixed streaming suppresses identical text/style restarts, so improved behavior cannot be attributed merely to comparing against redundant re-rendering. Its distinct valid completions may still replace earlier text. Development also preserves the original single-commit variant to reveal the risk of freezing an early nonmatching caption.
+
+The separate overload ablation compares FIFO, latest-only, and latest plus deadline control, all with identical deduplication. It deliberately holds payload semantics outside the scheduling comparison. This separates a candidate-selection result from a queue-freshness result instead of treating either as a complete VR evaluation.
+
+\subsection{The existing VR player is a separate integration step}
+The inspected repository's \texttt{Cue} schema specifies media start/end times, kind, anchor, offsets, asset identifier, and interaction permissions. It accepts registered preloaded PNG captions rather than arbitrary generated strings~\cite{repo}. A dynamic-text texture renderer or an approved-asset selector is still needed to connect the new backend to that formal player. Style labels in the experiment are not measured animations.
+
+The intended end-to-end reference is the emphasized word end $t_w$ and the first physically visible headset frame $t_f$, giving $L_{\mathrm{VR}}=t_f-t_w$. The current show log precedes the render call and cannot establish $t_f$. The audio clock also requires physical output calibration. Here GPU service and backend replay are reported separately; neither is relabeled as speech-to-headset latency. Clock alignment, transport, texture preparation, and the device compositor remain unmeasured.
+

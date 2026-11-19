@@ -1,0 +1,93 @@
+\section{Experimental Design}
+\label{sec:experimental-design}
+
+Our evaluation separates measured inference components from a backend
+policy replay. All GPU profiles run on one NVIDIA GeForce RTX 4090 with
+24\,GB nominal device memory. The candidate-generation environment uses
+PyTorch 2.11.0, Transformers 5.5.4, and CUDA 13.0, with BF16 weights.
+The final checkpoint, attention backend, decoding configuration, software
+versions, and source hashes are recorded in the corresponding run metadata;
+they are not inferred from a model family name. Model loading and data
+preparation are excluded from per-request service demands. The ASR pilot
+uses a separate CTranslate2 backend and FP16 computation. GPU workloads
+are scheduled sequentially so our ASR and candidate-generation profiles
+do not overlap.
+
+\subsection{Component Pilots and Development Data}
+
+The ASR pilot uses two Chinese speech files preserved in the repository
+archive, with decoded durations of 139.76 and 127.84 seconds. We decode
+each file once and evaluate its first 30 seconds using cumulative
+prefixes arriving at one-, two-, or four-second intervals. Three repeated
+runs yield 318 timed prefix decodes after three excluded warmup calls.
+Timing extends through complete consumption of the lazy ASR segment
+iterator. These are offline repeated-prefix decodes, not native streaming
+recognition. The recordings contain near-identical material according
+to their machine transcripts, so repetitions characterize this workload
+rather than adding independent scripts or speakers. We measure service
+cost and transcript-prefix revision between successive updates, and
+separately measure consistency with a same-model final-prefix reference;
+no human transcription accuracy is claimed.
+
+The earlier 24-utterance policy pilot is exploratory. Its outputs and
+failure cases informed the research questions and cannot serve as an
+unseen test of the revised system. The revised workflow instead uses
+12 development cases, comprising eight positives and four negatives,
+and a separately authored 40-case holdout. Development examples support
+implementation and configuration choices. Before opening the holdout,
+we freeze the benchmark source, prompt, model configuration, and scoring
+contract, and preserve their hashes. Holdout labels and reviewer
+manifests remain separate from online inputs.
+
+\subsection{Fresh Holdout and Timing Contract}
+
+The fresh holdout contains 32 positive utterances and eight ordinary
+negative controls. Sixteen positives place their strict emphasis target
+at the utterance end; sixteen retain spoken context after it. Six
+positives also carry stress annotations: three contain a one-update
+synthetic ASR substitution, and three require later context to resolve
+an initially ambiguous interpretation. These six overlap the 32 positives.
+Targets are one to four source words. Strict targets and at most two
+permitted alternative spans are declared before inference. Every allowed
+alternative ends at the same source-word position as its strict target,
+so phrase tolerance does not move the timing reference.
+
+Source words receive constant durations of 360, 400, or 440 milliseconds
+per utterance. Partial transcripts arrive on a 500-millisecond grid.
+A supplied final flag follows the first complete-text grid point by one
+additional update. Revision stresses alter a target-tail word for one
+update and restore it on the next, while preserving the original source
+clock. These arrivals and word ends are synthetic, not measured
+recognition or physical speech timing. Online methods receive only
+observed partial text, arrivals, and final flags. Authored targets,
+future text, safety annotations, and deadlines are used exclusively
+by the evaluator.
+
+Let $w$ denote the strict target's source-word end and $s$ its
+predeclared earliest safe reveal time. The latter incorporates necessary
+later context and, for a revision stress, availability of the corrected
+partial. We report target coverage in both the evaluation-safe window
+$[s,s+1500\,\mathrm{ms}]$ and the earlier word-end contract
+$[w,w+1500\,\mathrm{ms}]$. A display before $s$ remains premature even
+if it satisfies the earlier window. The two contracts are reported
+explicitly rather than exchanging their reference points.
+
+\subsection{Metrics and Measurement Boundaries}
+
+Strict and allowed-span target coverage each use all 32 positives as
+their denominator, including omissions. Negative false activation is
+the number of negative clips with any displayed text divided by eight;
+queued displays after the final ASR update are included. Display-level
+matching precision includes negative-control displays in its denominator.
+First-match latency is accompanied by its matched-case count. Paired
+latency comparisons use only the common matched subset, while coverage
+retains every positive case. Proposal calls, cache use, and cumulative
+GPU service demand expose the computational cost of each policy.
+
+Policy timings come from discrete-event replay with measured GPU service
+demands and scripted transcript arrivals. They therefore characterize
+backend scheduling under this contract. The ASR and policy pilots use
+different inputs and are not combined into an end-to-end latency number.
+Network delivery, browser queues, WebXR rendering, and physical headset
+presentation remain outside the measured boundary.
+

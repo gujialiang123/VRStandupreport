@@ -1,0 +1,51 @@
+\subsection{Fresh holdout improves timely coverage over sentence final}
+The frozen Qwen3-4B run profiles 532 prefixes plus three excluded warmups on the same RTX 4090. Every measured output satisfies the JSON schema. Service P50/P95 is 437.5/491.5 ms, with peak allocated GPU memory of 7.61 GiB in BF16. Thirteen frozen source and configuration digests match the evaluated implementation; profiling starts after source freezing. The measured bank is replayed without changing the generator, thresholds, targets, or scoring contract.
+
+\begin{figure*}[!t]
+\centering\includegraphics[width=\textwidth]{v2-coverage-safety.pdf}
+\caption{Fresh held-out coverage. All 32 positives enter each target denominator, including omissions. Safe-origin and word-end windows are distinct, and both strict and predeclared alternative spans are shown. No negative control activates text, with a denominator of eight. These outcomes are authored-contract agreement, not human semantic accuracy.}
+\label{fig:heldout-coverage}
+\end{figure*}
+
+\begin{table}[t]
+\caption{Fresh held-out paired replay. Timely counts use all 32 positives and the authored safe-reveal window. False activation uses all eight negatives. Work is summed measured demand for simulated served requests.}
+\label{tab:heldout}\centering
+\begin{tabular}{lrrrr}
+\toprule
+Policy & Timely & False & Calls & Work (s)\\
+\midrule
+Sentence final & 7/32 & 0/8 & 40 & 18.47\\
+Fixed with dedup & 14/32 & 0/8 & 359 & 159.73\\
+Cached commitment & 13/32 & 0/8 & 266 & 117.59\\
+\bottomrule
+\end{tabular}\end{table}
+
+Cached commitment raises primary timely coverage from 21.9\% to 40.6\%, an 18.75 percentage-point improvement over sentence final on the same inputs. Fixed streaming reaches 43.8\%. Exact canonical matching yields the same 7, 14, and 13 timely counts as the predeclared alternatives, so broadening accepted spans does not create this result. Under the older target-word-end window, counts are 6, 15, and 13 respectively. The improvement over sentence final thus remains under that reference, while the different safe-time contract is explicit.
+
+Relative to sentence final, cache makes eight previously unsuccessful cases timely and loses two baseline timely cases, a net gain of six. This is an aggregate improvement rather than per-utterance dominance.
+
+\begin{figure}[!t]
+\centering\includegraphics[width=\columnwidth]{v2-latency-coverage-single.pdf}
+\caption{Cumulative safe strict-target coverage. Every curve retains the full 32-positive denominator, including misses. The 1,500 ms line intersects the curves at 7, 14, and 13 timely targets. Unsafe matches are excluded.}
+\label{fig:latency-coverage}
+\end{figure}
+
+No negative clip activates a caption in any policy (0/8). This is a check on eight authored controls rather than a population-level false-trigger guarantee. Any-target coverage, including late or unsafe matches, is 11/32 for sentence final, 15/32 for fixed, and 14/32 for cache. These outcomes distinguish producing some text from matching an intended emphasis at an acceptable time.
+
+\subsection{Caching trades confirmation delay for less work and churn}
+Relative to fixed streaming, cache loses one timely positive but reduces served requests from 359 to 266 (25.9\%) and summed replay service demand from 159.73 to 117.59 seconds (26.4\%). Visible text changes fall from 29 to 11 (62.1\%), despite both methods already deduplicating identical text/style. Total presentation events fall from 62 to 40. The bounded two-commit rule partly enforces this display reduction; it is not evidence of improved human readability.
+
+\begin{figure*}[!t]
+\centering\includegraphics[width=\textwidth]{v2-quality-compute.pdf}
+\caption{The held-out cost--coverage tradeoff. Cached commitment retains 13 of fixed streaming's 14 timely targets with fewer calls, less replay demand, and fewer visible text changes. Sentence final consumes much less work but reaches only seven timely targets. The savings comparator is fixed streaming, not sentence final.}
+\label{fig:heldout-cost}
+\end{figure*}
+
+The full cost comparison matters. Sentence final uses only 40 requests and 18.47 seconds of demand, substantially less than either streaming method. Earlier incremental output therefore spends extra speculative computation. Cache recovers part of that cost relative to fixed streaming while preserving 13 of its 14 timely successes; it is not the lowest-cost method overall.
+
+No inference deadline skip or late-result drop occurs in this main semantic workload. Its work savings come from cache holding, cooldown, bounded commitment, and queue behavior; the separate overload test evaluates deadline guards under actual queue pressure in the replay model.
+
+On 14 commonly matched utterances, cached first-match word-end delay is a median 300 ms longer than fixed streaming, consistent with the confirmation hold. Nine common cases with safe matching displays allow a more conservative comparison with sentence final: cache is a median 209.9 ms earlier. Coverage gains also arise from cases absent or late in sentence final, so a conditional delay statistic alone does not summarize the benefit. A larger 1.21-second raw median difference on ten common matches includes an unsafe match and is not used as the main improvement claim.
+
+\subsection{Remaining semantic and reveal failures}
+Both streaming methods display one matching caption before its authored safe time; sentence final has none. Stability across transcript updates therefore does not guarantee semantic reveal safety. First-display target precision is unchanged at 9/29 displayed clips (31.0\%) for fixed and cache. Event-level matching precision is 17/62 (27.4\%) for fixed and 14/40 (35.0\%) for cache, but that aggregate improvement does not repair the shared first-display problem. The method improves timely coverage over a sentence-final baseline and reduces streaming work; it still frequently selects a different emphasis and cannot be called a solved semantic captioner.

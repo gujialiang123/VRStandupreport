@@ -1,14 +1,41 @@
-\documentclass{article}
-\usepackage{graphicx} % Required for inserting images
-
-\title{cs692}
-\author{嘉良 谷}
-\date{November 2026}
-
+\documentclass[conference,letterpaper]{IEEEtran}
+\usepackage{fontspec}
+\setmainfont{texgyretermes-regular.otf}[BoldFont=texgyretermes-bold.otf,ItalicFont=texgyretermes-italic.otf,BoldItalicFont=texgyretermes-bolditalic.otf]
+\usepackage{graphicx,booktabs,amsmath,amssymb,url}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{figures/}}
 \begin{document}
-
+\title{VRStandup Incremental Expressive Captions and Deadline Aware Scheduling}
+\author{\IEEEauthorblockN{Jialiang Gu}\IEEEauthorblockA{CS 692 Mobile Immersive Computing\\Individual Final Project Report\\November 19, 2026}}
 \maketitle
-
+\input{abstract_v2.tex}
 \section{Introduction}
+Expressive text in VR comedy must select an appropriate emphasis and appear near the performer's delivery. A correct effect displayed several lines late may compete with the next joke. An effect that exposes a punchline early can remove surprise. Repeated changes to text or animation can create a different failure even when every update is technically valid. The system therefore needs separate decisions about preparing content and making it visible.
 
+The original VRStandup proposal concerned audience experience under caption presentation conditions. The October 8 status report documented a theater and avatar foundation, with the planned C1 static, C2 expressive performer-anchored, and C3 distributed conditions still incomplete~\cite{status}. It identified a need to coordinate independently timed audio and animation. This report limits that earlier context and focuses on the new backend experiments and implementation.
+
+The work proceeds through an initial measurement pilot, a revised candidate policy, and a scheduling stress test. The first pilot establishes feasible component execution and exposes an output-contract problem in a small generator. A larger model improves format reliability, but its readiness flag can suppress an already proposed target. The revised design therefore separates an extractive proposal from commitment, retains candidates across subsequent ASR updates, and uses observed ASR support to control presentation. A fresh authored holdout follows development and source freezing. A separate overload test isolates task freshness from semantic selection.
+
+The intended contribution is an implemented and inspectable prototype rather than a trained caption model. The deliverables include a pure online candidate-policy interface, measured per-request GPU records, paired replay against sentence-final and deduplicating streaming baselines, and an age-bounded queue policy. Evaluation reports coverage together with latency and workload, so omission or freezing cannot by itself count as success. No audience-experience or physical headset-latency claim is made.
+
+\section{Project Context and Prior Work}
+At the status checkpoint, the source used Next.js and A-Frame/WebXR, selectable performers, fixed voice samples, and converted animation assets. Its recorded checks concerned asset loading and animation availability, not headset readability, comfort, or the planned participant outcomes. Proposed pilot dates were plans rather than evidence of completed sessions~\cite{status}.
+
+The current inspected source, commit \texttt{0d54852}, uses official Three.js and WebXR with an audio-clock cue timeline, preloaded PNG captions, interaction evidence, and browser--session communication~\cite{repo}. Its A--D definitions should not be presented as a completed evaluation of the earlier C1--C3 design. My focus follows the checkpoint's playback and quantitative-analysis role; theater, avatar, and study infrastructure remain team foundations.
+
+Affective-caption research motivates considering readability, distraction, and expressiveness. Caption Royale examined typographic styles with Deaf and Hard-of-Hearing participants~\cite{pataca}, but does not establish a comedy-specific timing window. STACL's prefix-to-prefix framework illustrates controllable waiting for context~\cite{stacl}. Whisper-Streaming uses local agreement to stabilize recognition updates~\cite{whisperstream}. Our use of agreement and queue freshness draws on established ideas; neither is claimed as a novel general algorithm.
+
+Whisper supplies the recognition family~\cite{whisper}, faster-whisper its CTranslate2 execution~\cite{fasterwhisper}, and cached Qwen instruction models the text generators~\cite{qwen,qwen25}. We train no model. The systems investigation concerns when their outputs become usable, how much work a streaming policy performs, and how the implementation handles revisable input.
+
+\input{system_v2.tex}
+\input{evaluation_v2.tex}
+\section{Results}
+\input{results_baseline.tex}
+\input{results_holdout.tex}
+\input{results_overload.tex}
+\input{discussion_v2.tex}
+\input{conclusion_v2.tex}
+\input{references_v2.tex}
 \end{document}
+
+

@@ -1,0 +1,29 @@
+\subsection{Queue scheduling improves freshness under controlled overload}
+A separate stress test isolates queue management from caption semantics. It reuses the 287 measured small-model service demands, with original synthetic release times, but assigns each job a controlled nonempty payload: the last up to three normalized words already present in that prefix. These payloads are not model-generated captions; their purpose is to prevent abstention from hiding scheduling effects. The test is CPU discrete-event replay, not a new GPU contention experiment. Multipliers of 1, 2, and 4 scale the historical demands and the public service estimate.
+
+The protocol fixes the primary setting at 2x demand and a 1,500 ms release-age budget before comparison. Every baseline suppresses identical consecutive outputs. FIFO queues all jobs. Latest-only retains the newest pending update without interrupting running work. The guarded variant also rejects admission if a fixed 500 ms estimate times the scale would miss the release-age budget, and drops results that finish late. No scheduler sees future per-request service or semantic labels.
+
+\begin{table}[t]
+\caption{Controlled overload primary setting. Fresh counts use all 287 releases as denominator; they require age at most 1,500 ms and continued source support. Service is replay demand, not newly measured GPU wall time.}
+\label{tab:overload}\centering
+\begin{tabular}{lrrr}
+\toprule
+Policy & Fresh & Queue P95 (ms) & Service (s)\\
+\midrule
+FIFO with dedup & 124 & 5181.9 & 264.5\\
+Latest with dedup & 165 & 496.2 & 174.2\\
+Latest plus deadline & 165 & 435.7 & 161.3\\
+\bottomrule
+\end{tabular}\end{table}
+
+Relative to FIFO, latest plus deadline raises fresh currently-supported coverage from 124/287 to 165/287 (43.2\% to 57.5\%, a 14.3 percentage-point gain), reduces queue P95 from 5.18 seconds to 0.44 seconds, and reduces summed replay demand by 39.0\%. All 24 clips retain at least one fresh supported display. Queue P95 uses started jobs, so its denominator changes from 287 to 193; the all-release coverage result is the necessary companion to that conditional statistic.
+
+\begin{figure*}[!t]
+\centering\includegraphics[width=\textwidth]{v2-overload/controlled_overload_primary.pdf}
+\caption{Controlled queue replay at the frozen 2x service-demand setting and 1,500 ms release-age budget. Payloads are synthetic source suffixes and service demands come from historical GPU measurements. Latest-only scheduling increases fresh-supported output; deadline guards preserve that count while removing stale results and reducing additional demand. These are scheduling outcomes, not semantic accuracy or physical VR latency.}
+\label{fig:overload}
+\end{figure*}
+
+The ablation separates the mechanisms. Latest-only already obtains all 165 fresh supported displays. Deadline guards retain that count while reducing its service demand by another 7.4\%, from 174.2 to 161.3 seconds. They remove 27 stale displays, giving zero stale displays out of 170 presented outputs. FIFO presents 142 stale outputs out of 268. Zero stale output follows directly from the completion guard; the substantive additional observations are retained fresh coverage and reduced wasted demand. Five guarded outputs lose current ASR support after a revision and are excluded from the fresh-supported count.
+
+The complete sweep retains failures. At 2x with an 800 ms budget, and at 4x with either budget, the conservative estimate prevents every job from starting. These settings have zero coverage and an undefined stale-display rate, not successful zero-latency service. At light load, benefits are smaller. The result supports freshness control under this workload model, not improved comedic relevance, measured live throughput, or a physical VR latency guarantee.

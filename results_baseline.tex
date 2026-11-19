@@ -1,0 +1,36 @@
+\subsection{Component execution and model selection}
+The first experiment establishes that the selected ASR workload fits on the available GPU. Across 318 cumulative-prefix requests on the two archived 30-second windows, 1-second updates have service P50/P95 of 241.1/481.4 ms. Requesting updates every two seconds reduces mean cumulative ASR work from 7.643 to 3.839 seconds per 30-second source window, a 49.8\% reduction with a longer observation interval. Four-second updates require 2.253 seconds. These service sums exclude capture, network, and headset display; they describe a compute--update-frequency tradeoff rather than a free latency improvement.
+
+Recognition updates also justify separating internal state from display. At 1-second cadence, recording A withdraws 192 normalized suffix characters and B withdraws eight. Some A prefixes change between simplified and traditional Chinese, so the longest-common-prefix metric counts orthographic changes and discarded suffixes rather than only semantic errors. Weighted consistency with a separate same-model 30-second decode is 86.60\%; there is no human reference transcript or WER. Three repetitions add timing observations, not independent recordings.
+
+\begin{figure*}[!t]
+\centering\includegraphics[width=\textwidth]{asr-prefix-tradeoff.pdf}
+\caption{Measured ASR service and update tradeoff on two archived windows. Recording A and B are file labels, not verified speaker demographics. More frequent prefix re-decoding consumes more work and creates more opportunities to revise; withdrawals include orthographic changes and are not word error rates.}
+\label{fig:asr-components}
+\end{figure*}
+
+\begin{table}[t]
+\caption{Initial paired model comparison with the original readiness-coupled prompt. The streaming target row uses the fixed-interval policy; authored targets and inputs are identical across models.}
+\label{tab:model-selection}\centering
+\begin{tabular}{lrr}
+\toprule
+Outcome & 0.6B & 7B\\
+\midrule
+Strict JSON objects & 226/287 & 287/287\\
+Usable final candidates & 0/24 & 22/24\\
+Streaming target coverage & 1/24 & 9/24\\
+Streaming on-time targets & 0/24 & 2/24\\
+Usable service P50 (ms) & 283.3 & 294.7\\
+\bottomrule
+\end{tabular}\end{table}
+
+Model selection produces a concrete improvement in reliability. On the same 287 prefixes, strict JSON compliance rises from 78.7\% to 100\%, while the fixed-streaming authored-target coverage rises from 1/24 to 9/24. At sentence final, small-model outputs all fail validation: 18 exceed four words and six are not strict JSON. The larger model produces 22 usable final candidates. This supports moving beyond the 0.6B configuration and motivates the subsequent development comparison; it is a component result rather than the scheduling contribution.
+
+The larger model's overall service median is 222.9 ms versus 469.5 ms for the small model, but output lengths differ substantially. Among usable outputs, the medians are instead 294.7 and 283.3 ms. The overall difference is therefore not evidence that a larger model has intrinsically higher throughput. The larger model emits 243 empty abstentions and nine nonempty not-ready proposals in the 287-request bank.
+
+\subsection{A readiness bottleneck motivates the revision}
+Under the original 7B prompt, all three policies match nine authored targets but only two within 1,500 ms. Matching-utterance median delay is 4.10 seconds for sentence final and 3.85 seconds for both streaming policies. The unchanged timely coverage motivates a more specific diagnosis than simply increasing GPU speed.
+
+In the exploratory ``digital confetti'' example, the target ends at synthetic time 2.80 seconds. At 3.00 seconds the transcript contains the phrase and the model proposes the exact text, completing at 3.29 seconds, but marks readiness false. The original parser makes it unusable. A ready proposal appears only after the 6.50-second update; fixed commits at 6.80 seconds and the original adaptive rule at 7.30 seconds. Both miss the 4.30-second deadline. This case suggests retaining a grounded proposal and validating it against later ASR updates instead of discarding it on a model readiness flag.
+
+The original policy also establishes a modest display-management benefit: it eliminates ten identical restarts in the larger-model replay while preserving its 9/24 target coverage and 2/24 timely coverage. Because one-commit freezing enforces this result, it is not a perceptual-quality finding. The revised experiment includes a deduplicating fixed baseline to distinguish the new cache behavior from trivial suppression of identical outputs.
